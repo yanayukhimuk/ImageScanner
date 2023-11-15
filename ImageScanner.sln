@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.7.34202.233
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImageScanner", "ImageScanner\ImageScanner.csproj", "{158E959A-55E9-4638-9560-77F44713FFDC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImageScannerLib", "ImageScannerLib\ImageScannerLib.csproj", "{664E037F-BB10-4190-968A-391D50B44151}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{158E959A-55E9-4638-9560-77F44713FFDC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{158E959A-55E9-4638-9560-77F44713FFDC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{158E959A-55E9-4638-9560-77F44713FFDC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{158E959A-55E9-4638-9560-77F44713FFDC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{664E037F-BB10-4190-968A-391D50B44151}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{664E037F-BB10-4190-968A-391D50B44151}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{664E037F-BB10-4190-968A-391D50B44151}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{664E037F-BB10-4190-968A-391D50B44151}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C16B928F-4C99-4713-A8C7-DDDB88A3348D}
+	EndGlobalSection
+EndGlobal
