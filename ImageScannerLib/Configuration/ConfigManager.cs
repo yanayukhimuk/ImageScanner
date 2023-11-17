@@ -31,7 +31,8 @@ namespace ImageScannerLib.Configuration
             configDetails.Hostname = ConfigurationManager.AppSettings["hostname"];
             configDetails.Queue = ConfigurationManager.AppSettings["queue"];
             configDetails.Exchange = ConfigurationManager.AppSettings["exchange"];
-            configDetails.Directory = ConfigurationManager.AppSettings["directoryPath"];
+            configDetails.WatchFolderPath = ConfigurationManager.AppSettings["watchFolderPath"];
+            configDetails.DestinationFolderPath = ConfigurationManager.AppSettings["destinationPath"];
 
             return configDetails;
         }

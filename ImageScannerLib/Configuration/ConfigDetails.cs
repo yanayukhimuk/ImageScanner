@@ -14,6 +14,7 @@ namespace ImageScannerLib.Configuration
         public string Hostname { get; set; }
         public string Queue { get; set; }
         public string Exchange { get; set; }
-        public string Directory { get; set; }
+        public string WatchFolderPath { get; set; }
+        public string DestinationFolderPath { get; set; }
     }
 }
