@@ -32,6 +32,10 @@ namespace ImageScanner
                 {
                     return new DataCaptureService(ImageScannerConstants.PDF);
                 });
+                services.AddHostedService<DataCaptureService>(provider =>
+                {
+                    return new DataCaptureService(ImageScannerConstants.JPG);
+                });
             });
     }
 }
