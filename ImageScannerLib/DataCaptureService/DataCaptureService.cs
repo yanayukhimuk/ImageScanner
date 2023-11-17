@@ -1,5 +1,6 @@
 ﻿using ImageScannerLib.Configuration;
 using Microsoft.Extensions.Hosting;
+using NLog;
 using RabbitMQ.Client;
 using System;
 using System.Collections;
@@ -13,6 +14,8 @@ namespace ImageScannerLib.DataCaptureService
 {
     public class DataCaptureService : BackgroundService
     {
+        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+
         private readonly IConnection _connection;
         private readonly IModel _channel;
         private readonly string _fileExtension;
@@ -30,7 +33,15 @@ namespace ImageScannerLib.DataCaptureService
             _channel = _connection.CreateModel();
 
             _channel.QueueDeclare(_queue, true, false, false, null);
-        }
+
+            logger.Info("Data Capture Service is initialized.");
+            logger.Info($"Connection: {_connection}.");
+            logger.Info($"Channel: {_channel}.");
+            logger.Info($"File Extension:  {_fileExtension} .");
+            logger.Info($"Hostname:  {_hostName} .");
+            logger.Info($"Queue:  {_queue} .");
+            logger.Info($"Folder with files:  {_watchFolderPath} .");
+        }   
         protected override Task ExecuteAsync(CancellationToken stoppingToken)
         {
             stoppingToken.ThrowIfCancellationRequested();
@@ -43,11 +54,15 @@ namespace ImageScannerLib.DataCaptureService
 
             _watcher.Created += (sender, args) =>
             {
+                logger.Info("New file has been created.");
+
                 var filePath = args.FullPath;
                 if (File.Exists(filePath) && Path.GetExtension(filePath) == $".{_fileExtension}")
                 {
                     var body = Encoding.UTF8.GetBytes(filePath);
                     _channel.BasicPublish("", _queue, null, body);
+
+                    logger.Info($"File is being movied through channel:  {_channel}, and queue: {_queue}.");
                 }
             };
 
@@ -59,6 +74,9 @@ namespace ImageScannerLib.DataCaptureService
             _watcher?.Dispose();
             _channel.Close();
             _connection.Close();
+
+            logger.Info("Disposing resources.");
+
             base.Dispose();
         }
 

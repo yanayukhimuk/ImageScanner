@@ -10,11 +10,14 @@ using System.ComponentModel;
 using Microsoft.Extensions.Hosting;
 using System.Threading.Channels;
 using ImageScannerLib.Configuration;
+using NLog;
 
 namespace ImageScannerLib.ProcessingService
 {
     public class ProcessingService : BackgroundService
     {
+        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+
         private readonly IConnection _connection;
         private readonly IModel _channel;
 
@@ -29,6 +32,13 @@ namespace ImageScannerLib.ProcessingService
 
             _channel.QueueDeclare(_queue, true, false, false, null);
             Directory.CreateDirectory(_storePath);
+
+            logger.Info("Processing Service is initialized.");
+            logger.Info($"Connection: {_connection}.");
+            logger.Info($"Channel: {_channel}.");
+            logger.Info($"Hostname:  {_hostName} .");
+            logger.Info($"Queue:  {_queue} .");
+            logger.Info($"Destination folder with files:  {_storePath} .");
         }
 
         protected override Task ExecuteAsync(CancellationToken stoppingToken)
@@ -40,7 +50,13 @@ namespace ImageScannerLib.ProcessingService
             consumer.Received += (sender, eventArgs) =>
             {
                 var documentName = Encoding.UTF8.GetString(eventArgs.Body.ToArray());
+
+                logger.Info($"Received document is : {documentName}.");
+
                 File.Move(documentName, Path.Combine(_storePath, Path.GetFileName(documentName)));
+
+                logger.Info($"Document {documentName} moved to folder {_storePath}.");
+
                 _channel.BasicAck(eventArgs.DeliveryTag, false);
             };
 
@@ -51,6 +67,8 @@ namespace ImageScannerLib.ProcessingService
 
         public override void Dispose()
         {
+            logger.Info("Disposing resources.");
+
             _channel.Close();
             _connection.Close();
             base.Dispose();
