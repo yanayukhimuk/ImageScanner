@@ -25,6 +25,7 @@ namespace ImageScannerLib.ProcessingService
         private readonly string _queue = ConfigManager.GetConfigDetails().Queue;
         private readonly string _storePath = ConfigManager.GetConfigDetails().DestinationFolderPath;
         private readonly string _hostName = ConfigManager.GetConfigDetails().Hostname;
+        private readonly string _path = "C:\\Users\\Yana_Yukhimuk\\source\\repos\\ImageScanner\\ImageScanner\\bin\\Debug\\net7.0\\";
         public ProcessingService()
         {
             var factory = new ConnectionFactory() { HostName = _hostName };
@@ -44,33 +45,25 @@ namespace ImageScannerLib.ProcessingService
 
         protected override Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            stoppingToken.ThrowIfCancellationRequested();
-
             _channel.BasicQos(0, 1, false);
-            var consumer = new EventingBasicConsumer(_channel);
+            EventingBasicConsumer consumer = new EventingBasicConsumer(_channel);
             _channel.BasicConsume(_queue, false, consumer);
 
-            while (true)
+            consumer.Received += (model, eventArgs) =>
             {
-                consumer.Received += (sender, eventArgs) =>
+                Console.WriteLine("Received a chunk!");
+                var headers = eventArgs.BasicProperties.Headers;
+                string randomFileName = Encoding.UTF8.GetString(headers["output-file"] as byte[]);
+                bool isLastChunk = Convert.ToBoolean(headers["finished"]);
+                string localFileName = string.Concat(_path, _storePath, "\\", randomFileName);
+                using (FileStream fileStream = new FileStream(localFileName, FileMode.Append, FileAccess.Write))
                 {
-                    logger.Info("Received a chunk!");
-                    var headers = eventArgs.BasicProperties.Headers;
-
-                    string randomFileName = Encoding.UTF8.GetString((headers["output-file"] as byte[]));
-                    bool isLastChunk = Convert.ToBoolean(headers["finished"]);
-                    string localFileName = string.Concat(_storePath, randomFileName);
-
-                    using (FileStream fileStream = new FileStream(localFileName, FileMode.Append, FileAccess.Write))
-                    {
-                        fileStream.Write(eventArgs.Body.ToArray(), 0, eventArgs.Body.Length);
-                        fileStream.Flush();
-                    }
-
-                    logger.Info("Chunk saved. Finished? {0}", isLastChunk);
-                    _channel.BasicAck(eventArgs.DeliveryTag, false);
-                };
-            }
+                    fileStream.Write(eventArgs.Body.ToArray(), 0, eventArgs.Body.Length);
+                    fileStream.Flush();
+                }
+                Console.WriteLine("Chunk saved. Finished? {0}", isLastChunk);
+                _channel.BasicAck(eventArgs.DeliveryTag, false);
+            };
 
             return Task.CompletedTask;
         }

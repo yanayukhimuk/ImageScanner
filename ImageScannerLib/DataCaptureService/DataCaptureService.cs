@@ -26,6 +26,7 @@ namespace ImageScannerLib.DataCaptureService
         private FileSystemWatcher _watcher;
         private readonly string _hostName = ConfigManager.GetConfigDetails().Hostname;
         private readonly string _queue = ConfigManager.GetConfigDetails().Queue;
+        private readonly string _exchange = ConfigManager.GetConfigDetails().Exchange;
         private readonly string _watchFolderPath = GetDirectoryPath(ConfigManager.GetConfigDetails().WatchFolderPath);
         private readonly int _messageSizeBytes = 65_536;
 
@@ -95,6 +96,9 @@ namespace ImageScannerLib.DataCaptureService
                         basicProperties.Headers = new Dictionary<string, object>();
                         basicProperties.Headers.Add("output-file", randomFileName);
                         basicProperties.Headers.Add("finished", finished);
+                        basicProperties.Headers.Add("file-size", totalFileSize);
+                        basicProperties.Headers.Add("format", _fileExtension);
+                        basicProperties.Headers.Add("server", _hostName);
 
                         _channel.BasicPublish("", _queue, basicProperties, buffer);
                         remainingFileSize -= read;
