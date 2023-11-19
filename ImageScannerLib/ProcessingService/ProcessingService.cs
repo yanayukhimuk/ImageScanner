@@ -11,6 +11,7 @@ using Microsoft.Extensions.Hosting;
 using System.Threading.Channels;
 using ImageScannerLib.Configuration;
 using NLog;
+using System.Reflection;
 
 namespace ImageScannerLib.ProcessingService
 {
@@ -45,22 +46,31 @@ namespace ImageScannerLib.ProcessingService
         {
             stoppingToken.ThrowIfCancellationRequested();
 
+            _channel.BasicQos(0, 1, false);
             var consumer = new EventingBasicConsumer(_channel);
-
-            consumer.Received += (sender, eventArgs) =>
-            {
-                var documentName = Encoding.UTF8.GetString(eventArgs.Body.ToArray());
-
-                logger.Info($"Received document is : {documentName}.");
-
-                File.Move(documentName, Path.Combine(_storePath, Path.GetFileName(documentName)));
-
-                logger.Info($"Document {documentName} moved to folder {_storePath}.");
-
-                _channel.BasicAck(eventArgs.DeliveryTag, false);
-            };
-
             _channel.BasicConsume(_queue, false, consumer);
+
+            while (true)
+            {
+                consumer.Received += (sender, eventArgs) =>
+                {
+                    logger.Info("Received a chunk!");
+                    var headers = eventArgs.BasicProperties.Headers;
+
+                    string randomFileName = Encoding.UTF8.GetString((headers["output-file"] as byte[]));
+                    bool isLastChunk = Convert.ToBoolean(headers["finished"]);
+                    string localFileName = string.Concat(_storePath, randomFileName);
+
+                    using (FileStream fileStream = new FileStream(localFileName, FileMode.Append, FileAccess.Write))
+                    {
+                        fileStream.Write(eventArgs.Body.ToArray(), 0, eventArgs.Body.Length);
+                        fileStream.Flush();
+                    }
+
+                    logger.Info("Chunk saved. Finished? {0}", isLastChunk);
+                    _channel.BasicAck(eventArgs.DeliveryTag, false);
+                };
+            }
 
             return Task.CompletedTask;
         }

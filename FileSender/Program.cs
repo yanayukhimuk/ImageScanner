@@ -1,14 +1,9 @@
-﻿using ImageScannerLib.Configuration;
+﻿using ImageScannerLib.Constants;
 using ImageScannerLib.DataCaptureService;
-using ImageScannerLib.ProcessingService;
-using ImageScannerLib.Constants;
-using System.Reflection;
-using System.IO;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Hosting;
 
-namespace ImageScanner
+namespace FileSender
 {
     internal class Program
     {
@@ -21,9 +16,9 @@ namespace ImageScanner
             Host.CreateDefaultBuilder(args)
             .ConfigureServices((hostContext, services) =>
             {
-                services.AddHostedService<ProcessingService>(provider =>
+                services.AddHostedService<DataCaptureService>(provider =>
                 {
-                    return new ProcessingService();
+                    return new DataCaptureService(ImageScannerConstants.PDF);
                 });
             });
     }

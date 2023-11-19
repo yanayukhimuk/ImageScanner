@@ -3,10 +3,13 @@ using Microsoft.Extensions.Hosting;
 using NLog;
 using RabbitMQ.Client;
 using System;
+using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Pipes;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -24,6 +27,8 @@ namespace ImageScannerLib.DataCaptureService
         private readonly string _hostName = ConfigManager.GetConfigDetails().Hostname;
         private readonly string _queue = ConfigManager.GetConfigDetails().Queue;
         private readonly string _watchFolderPath = GetDirectoryPath(ConfigManager.GetConfigDetails().WatchFolderPath);
+        private readonly int _messageSizeBytes = 65_536;
+
         public DataCaptureService(string fileExtention)
         {
             _fileExtension = fileExtention;
@@ -59,10 +64,43 @@ namespace ImageScannerLib.DataCaptureService
                 var filePath = args.FullPath;
                 if (File.Exists(filePath) && Path.GetExtension(filePath) == $".{_fileExtension}")
                 {
-                    var body = Encoding.UTF8.GetBytes(filePath);
-                    _channel.BasicPublish("", _queue, null, body);
+                    var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+                    StreamReader streamReader = new StreamReader(fileStream);
 
-                    logger.Info($"File is being movied through channel:  {_channel}, and queue: {_queue}.");
+                    int remainingFileSize = Convert.ToInt32(fileStream.Length);
+                    int totalFileSize = Convert.ToInt32(fileStream.Length);
+                    bool finished = false;
+
+                    string randomFileName = string.Concat("large_file", Guid.NewGuid(), $".{_fileExtension}");
+                    byte[] buffer;
+
+                    while (fileStream.CanRead)
+                    {
+                        if (remainingFileSize <= 0) break;
+                        int read = 0;
+                        if (remainingFileSize > _messageSizeBytes)
+                        {
+                            buffer = new byte[_messageSizeBytes];
+                            read = fileStream.Read(buffer, 0, _messageSizeBytes);
+                        }
+                        else
+                        {
+                            buffer = new byte[remainingFileSize];
+                            read = fileStream.Read(buffer, 0, remainingFileSize);
+                            finished = true;
+                        }
+
+                        IBasicProperties basicProperties = _channel.CreateBasicProperties();
+                        basicProperties.Persistent = true;
+                        basicProperties.Headers = new Dictionary<string, object>();
+                        basicProperties.Headers.Add("output-file", randomFileName);
+                        basicProperties.Headers.Add("finished", finished);
+
+                        _channel.BasicPublish("", _queue, basicProperties, buffer);
+                        remainingFileSize -= read;
+                    }
+
+                    logger.Info($"File fas been moved through channel:  {_channel}, and queue: {_queue}.");
                 }
             };
 
