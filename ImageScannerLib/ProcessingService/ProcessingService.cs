@@ -45,25 +45,34 @@ namespace ImageScannerLib.ProcessingService
 
         protected override Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            stoppingToken.ThrowIfCancellationRequested();
+            
             _channel.BasicQos(0, 1, false);
             EventingBasicConsumer consumer = new EventingBasicConsumer(_channel);
             _channel.BasicConsume(_queue, false, consumer);
+            bool isLastChunk = false;
 
-            consumer.Received += (model, eventArgs) =>
+            while (!isLastChunk)
             {
-                Console.WriteLine("Received a chunk!");
-                var headers = eventArgs.BasicProperties.Headers;
-                string randomFileName = Encoding.UTF8.GetString(headers["output-file"] as byte[]);
-                bool isLastChunk = Convert.ToBoolean(headers["finished"]);
-                string localFileName = string.Concat(_path, _storePath, "\\", randomFileName);
-                using (FileStream fileStream = new FileStream(localFileName, FileMode.Append, FileAccess.Write))
+                consumer.Received += (model, eventArgs) =>
                 {
-                    fileStream.Write(eventArgs.Body.ToArray(), 0, eventArgs.Body.Length);
-                    fileStream.Flush();
-                }
-                Console.WriteLine("Chunk saved. Finished? {0}", isLastChunk);
-                _channel.BasicAck(eventArgs.DeliveryTag, false);
-            };
+                    Console.WriteLine("Received a chunk!");
+                    var headers = eventArgs.BasicProperties.Headers;
+                    string randomFileName = Encoding.UTF8.GetString(headers["output-file"] as byte[]);
+                    isLastChunk = Convert.ToBoolean(headers["finished"]);
+                    var filesize = Encoding.UTF8.GetString(headers["file-size"] as byte[]);
+                    var format = Encoding.UTF8.GetString(headers["format"] as byte[]);
+
+                    string localFileName = string.Concat(_path, _storePath, "\\", randomFileName);
+                    using (FileStream fileStream = new FileStream(localFileName, FileMode.Append, FileAccess.Write))
+                    {
+                        fileStream.Write(eventArgs.Body.ToArray(), 0, eventArgs.Body.Length);
+                        fileStream.Flush();
+                    }
+                    Console.WriteLine("Chunk saved. Finished? {0}", isLastChunk);
+                    _channel.BasicAck(eventArgs.DeliveryTag, false);
+                };
+            }
 
             return Task.CompletedTask;
         }
