@@ -12,6 +12,7 @@ using System.Threading.Channels;
 using ImageScannerLib.Configuration;
 using NLog;
 using System.Reflection;
+using System.Diagnostics.Tracing;
 
 namespace ImageScannerLib.ProcessingService
 {
@@ -26,6 +27,7 @@ namespace ImageScannerLib.ProcessingService
         private readonly string _storePath = ConfigManager.GetConfigDetails().DestinationFolderPath;
         private readonly string _hostName = ConfigManager.GetConfigDetails().Hostname;
         private readonly string _path = "C:\\Users\\Yana_Yukhimuk\\source\\repos\\ImageScanner\\ImageScanner\\bin\\Debug\\net7.0\\";
+        private readonly string _TempFolder = "TempFiles";
         public ProcessingService()
         {
             var factory = new ConnectionFactory() { HostName = _hostName };
@@ -34,6 +36,7 @@ namespace ImageScannerLib.ProcessingService
 
             _channel.QueueDeclare(_queue, true, false, false, null);
             Directory.CreateDirectory(_storePath);
+            Directory.CreateDirectory(_TempFolder);
 
             logger.Info("Processing Service is initialized.");
             logger.Info($"Connection: {_connection}.");
@@ -52,27 +55,7 @@ namespace ImageScannerLib.ProcessingService
             _channel.BasicConsume(_queue, false, consumer);
             bool isLastChunk = false;
 
-            while (!isLastChunk)
-            {
-                consumer.Received += (model, eventArgs) =>
-                {
-                    Console.WriteLine("Received a chunk!");
-                    var headers = eventArgs.BasicProperties.Headers;
-                    string randomFileName = Encoding.UTF8.GetString(headers["output-file"] as byte[]);
-                    isLastChunk = Convert.ToBoolean(headers["finished"]);
-                    var filesize = Encoding.UTF8.GetString(headers["file-size"] as byte[]);
-                    var format = Encoding.UTF8.GetString(headers["format"] as byte[]);
-
-                    string localFileName = string.Concat(_path, _storePath, "\\", randomFileName);
-                    using (FileStream fileStream = new FileStream(localFileName, FileMode.Append, FileAccess.Write))
-                    {
-                        fileStream.Write(eventArgs.Body.ToArray(), 0, eventArgs.Body.Length);
-                        fileStream.Flush();
-                    }
-                    Console.WriteLine("Chunk saved. Finished? {0}", isLastChunk);
-                    _channel.BasicAck(eventArgs.DeliveryTag, false);
-                };
-            }
+            consumer.Received += OnReceived;
 
             return Task.CompletedTask;
         }
@@ -84,6 +67,34 @@ namespace ImageScannerLib.ProcessingService
             _channel.Close();
             _connection.Close();
             base.Dispose();
+        }
+
+        public void OnReceived(object model, BasicDeliverEventArgs args)
+        {
+            Console.WriteLine("Received a chunk!");
+            var headers = args.BasicProperties.Headers;
+            var fileName = Encoding.UTF8.GetString(headers["output-file"] as byte[]); // + folder + server
+            var isLastChunk = Convert.ToBoolean(headers["finished"]);
+            var filesize = Convert.ToInt32(headers["file-size"]);
+            var seqId = Encoding.UTF8.GetString(headers["seqId"] as byte[]);
+
+            fileName = string.Concat(_path, _storePath, "\\", fileName);
+            string tempFileName = string.Concat(_path, _TempFolder, "\\", seqId); 
+
+            using (FileStream fileStream = new FileStream(tempFileName, FileMode.Append, FileAccess.Write))
+            {
+                fileStream.Write(args.Body.ToArray(), 0, args.Body.Length);
+                fileStream.Flush();
+            }
+
+            FileInfo fi = new FileInfo(tempFileName);
+
+            if (fi.Length == filesize)
+            {
+                File.Move(tempFileName, fileName);
+            }
+            Console.WriteLine("Chunk saved. Finished? {0}", isLastChunk);
+            _channel.BasicAck(args.DeliveryTag, false);
         }
     }
 }

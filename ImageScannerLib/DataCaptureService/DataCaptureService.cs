@@ -72,8 +72,11 @@ namespace ImageScannerLib.DataCaptureService
                     int totalFileSize = Convert.ToInt32(fileStream.Length);
                     bool finished = false;
 
-                    string randomFileName = string.Concat("large_file", Guid.NewGuid(), $".{_fileExtension}");
+                    FileInfo fileInfo = new FileInfo(filePath);
+
+                    string fileName = fileInfo.Name;
                     byte[] buffer;
+                    var seqId = Guid.NewGuid().ToString();
 
                     while (fileStream.CanRead)
                     {
@@ -94,11 +97,12 @@ namespace ImageScannerLib.DataCaptureService
                         IBasicProperties basicProperties = _channel.CreateBasicProperties();
                         basicProperties.Persistent = true;
                         basicProperties.Headers = new Dictionary<string, object>();
-                        basicProperties.Headers.Add("output-file", randomFileName);
+                        basicProperties.Headers.Add("output-file", fileName);
                         basicProperties.Headers.Add("finished", finished);
                         basicProperties.Headers.Add("file-size", totalFileSize);
                         basicProperties.Headers.Add("format", _fileExtension);
                         basicProperties.Headers.Add("server", _hostName);
+                        basicProperties.Headers.Add("seqId", seqId);
 
                         _channel.BasicPublish("", _queue, basicProperties, buffer);
                         remainingFileSize -= read;
